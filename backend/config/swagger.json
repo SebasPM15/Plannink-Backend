@@ -1,0 +1,997 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Inventory Prediction API",
+    "description": "API for managing inventory predictions, alerts, reports, and user authentication.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3500/api",
+      "description": "Local development server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": { "type": "string", "example": "ERROR_CODE" },
+          "message": { "type": "string", "example": "Error description" }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "nombre": { "type": "string", "example": "John Doe" },
+          "email": { "type": "string", "example": "john@example.com" },
+          "celular": { "type": "string", "example": "+1234567890" }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string", "example": "Operation successful" },
+          "user": { "$ref": "#/components/schemas/User" },
+          "token": { "type": "string", "example": "jwt_token" }
+        }
+      },
+      "Report": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "filename": {
+            "type": "string",
+            "example": "reporte-SKU123-1697059200000.pdf"
+          },
+          "url": {
+            "type": "string",
+            "example": "https://storage.url/reporte.pdf"
+          },
+          "userId": { "type": "integer", "example": 1 },
+          "productCode": { "type": "string", "example": "SKU123" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-10-11T12:00:00Z"
+          }
+        }
+      },
+      "Analysis": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "name": { "type": "string", "example": "Analysis 1" },
+          "userId": { "type": "integer", "example": 1 },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-10-11T12:00:00Z"
+          }
+        }
+      },
+      "ActivityLog": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "analysisId": { "type": "integer", "example": 1 },
+          "action": { "type": "string", "example": "Analysis created" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-10-11T12:00:00Z"
+          }
+        }
+      },
+      "AlertResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": {
+            "type": "string",
+            "example": "Alerta enviada correctamente."
+          },
+          "alreadySent": { "type": "boolean", "example": false }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "Register a new user",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": { "type": "string", "example": "John Doe" },
+                  "email": { "type": "string", "example": "john@example.com" },
+                  "password": { "type": "string", "example": "Password123!" },
+                  "celular": { "type": "string", "example": "+1234567890" }
+                },
+                "required": ["nombre", "email", "password", "celular"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/auth/resend-verification": {
+      "post": {
+        "summary": "Resend verification code",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "example": "john@example.com" }
+                },
+                "required": ["email"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification code resent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": {
+                      "type": "string",
+                      "example": "Código de verificación reenviado"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/auth/verify": {
+      "post": {
+        "summary": "Verify user registration",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "example": "john@example.com" },
+                  "verificationCode": { "type": "string", "example": "123456" }
+                },
+                "required": ["email", "verificationCode"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User verified successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Log in a user",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "example": "john@example.com" },
+                  "password": { "type": "string", "example": "Password123!" }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "Log out a user",
+        "tags": ["Authentication"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Logout successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Logout exitoso" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/auth/request-password-reset": {
+      "post": {
+        "summary": "Request password reset",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "example": "john@example.com" }
+                },
+                "required": ["email"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset requested",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": {
+                      "type": "string",
+                      "example": "Correo de restablecimiento enviado"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/auth/verify-reset-code": {
+      "post": {
+        "summary": "Verify password reset code",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "example": "john@example.com" },
+                  "verificationCode": { "type": "string", "example": "123456" }
+                },
+                "required": ["email", "verificationCode"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reset code verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": {
+                      "type": "string",
+                      "example": "Código verificado correctamente"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "summary": "Reset user password",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "example": "john@example.com" },
+                  "verificationCode": { "type": "string", "example": "123456" },
+                  "newPassword": {
+                    "type": "string",
+                    "example": "NewPassword123!"
+                  }
+                },
+                "required": ["email", "verificationCode", "newPassword"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": {
+                      "type": "string",
+                      "example": "Contraseña restablecida correctamente"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/predictions/analyses": {
+      "get": {
+        "summary": "List all analyses for the authenticated user",
+        "tags": ["Predictions"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of analyses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Analysis" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/predictions/analyses/{analysisId}": {
+      "get": {
+        "summary": "Get specific analysis data by ID",
+        "tags": ["Predictions"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "analysisId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "ID of the analysis"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Analysis data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Analysis" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/schemas/Error" },
+          "404": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/predictions": {
+      "get": {
+        "summary": "Get all predictions for the authenticated user",
+        "tags": ["Predictions"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of predictions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Analysis" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/predictions/refresh": {
+      "post": {
+        "summary": "Generate new analysis from Excel file",
+        "tags": ["Predictions"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "excel": { "type": "string", "format": "binary" },
+                  "analysisName": {
+                    "type": "string",
+                    "example": "New Analysis"
+                  }
+                },
+                "required": ["excel", "analysisName"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Analysis created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": {
+                      "type": "string",
+                      "example": "Análisis generado exitosamente."
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "analysis": { "$ref": "#/components/schemas/Analysis" },
+                        "productos_procesados": {
+                          "type": "integer",
+                          "example": 100
+                        },
+                        "parameters_used": { "type": "object" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/schemas/Error" },
+          "401": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/predictions/{analysisId}/{code}/projections/{projectionIndex}/safety-stock": {
+      "post": {
+        "summary": "Apply safety stock to a specific projection",
+        "tags": ["Predictions"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "analysisId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "ID of the analysis"
+          },
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Product code"
+          },
+          {
+            "name": "projectionIndex",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Index of the projection"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "safetyStock": { "type": "number", "example": 100 }
+                },
+                "required": ["safetyStock"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Safety stock applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": {
+                      "type": "string",
+                      "example": "Stock de seguridad aplicado"
+                    },
+                    "data": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/schemas/Error" },
+          "401": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/predictions/{analysisId}/{code}/alerts/{alertId}": {
+      "patch": {
+        "summary": "Update an alert for a product",
+        "tags": ["Predictions"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "analysisId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "ID of the analysis"
+          },
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Product code"
+          },
+          {
+            "name": "alertId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ID of the alert"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "unidades": { "type": "number", "example": 50 },
+                  "lead_time_especifico": { "type": "number", "example": 7 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Alert updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": {
+                      "type": "string",
+                      "example": "Alerta actualizada"
+                    },
+                    "data": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/schemas/Error" },
+          "401": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/predictions/{analysisId}/{code}/transit-units": {
+      "post": {
+        "summary": "Add manual transit units to a product",
+        "tags": ["Predictions"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "analysisId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "ID of the analysis"
+          },
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Product code"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "units": { "type": "number", "example": 100 },
+                  "expectedArrivalDate": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2023-10-20"
+                  },
+                  "poNumber": { "type": "string", "example": "PO12345" }
+                },
+                "required": ["units", "expectedArrivalDate"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transit units added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": {
+                      "type": "string",
+                      "example": "Unidades en tránsito añadidas"
+                    },
+                    "data": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/schemas/Error" },
+          "401": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/alertas/stock": {
+      "post": {
+        "summary": "Evaluate and send stock alert",
+        "tags": ["Alerts"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "predictionData": { "type": "object" },
+                  "isManual": { "type": "boolean", "example": false }
+                },
+                "required": ["predictionData"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Alert sent or already sent",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AlertResponse" }
+              }
+            }
+          },
+          "202": {
+            "description": "Alert not required",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AlertResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/history/{analysisId}": {
+      "get": {
+        "summary": "Get activity history for an analysis",
+        "tags": ["Activity Log"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "analysisId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "ID of the analysis"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Activity history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/ActivityLog" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/schemas/Error" },
+          "401": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/reports": {
+      "get": {
+        "summary": "Get all reports for the authenticated user",
+        "tags": ["Reports"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of reports",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Report" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/reports/{id}": {
+      "get": {
+        "summary": "Get a specific report by ID",
+        "tags": ["Reports"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "ID of the report"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Report data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Report" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/schemas/Error" },
+          "404": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/reports": {
+      "post": {
+        "summary": "Create a new report",
+        "tags": ["Reports"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reportFile": { "type": "string", "format": "binary" },
+                  "productCode": { "type": "string", "example": "SKU123" }
+                },
+                "required": ["reportFile", "productCode"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Report created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Report" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/schemas/Error" },
+          "401": { "$ref": "#/components/schemas/Error" },
+          "429": { "$ref": "#/components/schemas/Error" },
+          "500": { "$ref": "#/components/schemas/Error" }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check endpoint",
+        "tags": ["Health"],
+        "responses": {
+          "200": {
+            "description": "Server health status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "dbStatus": { "type": "string", "example": "connected" },
+                    "timestamp": { "type": "string", "format": "date-time" },
+                    "service": {
+                      "type": "string",
+                      "example": "Inventory Prediction API"
+                    },
+                    "version": { "type": "string", "example": "1.0.0" },
+                    "environment": {
+                      "type": "string",
+                      "example": "development"
+                    },
+                    "port": { "type": "integer", "example": 3500 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
