@@ -1,0 +1,27 @@
+# 📦 Node & npm
+/backend/node_modules/
+**/node_modules/
+
+# 🧪 Entornos virtuales de Python
+/env/
+ai_model/venv/
+
+# 🔐 Variables de entorno y llaves privadas
+.env
+backend/.env
+backend/config/private.pem
+
+# 🗃️ Archivos de logs y temporales
+backend/logs/
+backend/prediction_log.txt
+
+# 📂 Archivos públicos generados (si los tienes)
+backend/public/
+
+# 💻 Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# 🐳 Docker
+.dockerignore
+docker-compose.override.yml

@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "nombre": "Mateo",
+    "email": "mateo@example.com",
+    "password": "$2b$10$C9aoo.C9l94eN7821.WrLee6IpeqWe0HR5cVi4fZiUyj83MXTQTtS",
+    "celular": "0995291560"
+  },
+  {
+    "id": 2,
+    "nombre": "Pato",
+    "email": "pato@example.com",
+    "password": "$2b$10$D7PrfnVW7ZhJYHv3NdTjEukT5XuZYqEB1gQTcKJZImK0S0Hc5g18y",
+    "celular": "0995291561"
+  }
+]

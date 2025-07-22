@@ -1,0 +1,32 @@
+services:
+  backend:
+    build:
+      context: . # raíz del repo
+      dockerfile: backend/Dockerfile
+    container_name: backend
+    ports:
+      - "3500:3500"
+    env_file:
+      - backend/.env
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    # volumes:
+    #   - ./backend:/usr/src/app
+    #   - ./ai_model:/usr/src/app/ai_model
+    #   - /usr/src/app/node_modules
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - frontend/.env
+    depends_on:
+      - backend
+    # volumes:
+    #   - ./frontend:/usr/src/app
+    #   - /usr/src/app/node_modules
