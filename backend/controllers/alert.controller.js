@@ -1,38 +1,41 @@
-import AlertService from '../services/alert.service.js';
-import { handleHttpError } from '../utils/errorHandler.js';
-import { logger } from '../utils/logger.js';
+// File: controllers/alert.controller.js
+import AlertService from "../services/alert.service.js";
+import { handleHttpError } from "../utils/errorHandler.js";
 
+/**
+ * @swagger
+ * tags:
+ *   name: Alerts
+ *   description: Creación y envío de alertas
+ */
+
+/**
+ * @swagger
+ * /api/alertas/stock:
+ *   post:
+ *     summary: Evalúa y envía alertas de stock
+ *     tags: [Alerts]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [predictionData]
+ *             properties:
+ *               predictionData: { type: array }
+ *               isManual: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: Alerta procesada
+ */
 export const evaluarAlertaYNotificar = async (req, res) => {
-    try {
-        // La validación del body ya fue hecha por el middleware de Joi.
-        const { predictionData, isManual } = req.body;
-
-        // El email se obtiene del usuario autenticado, no del body de la petición.
-        // Esto previene que tu API sea usada para enviar correos a terceros.
-        const email = req.user.email;
-
-        const resultado = await AlertService.evaluarYEnviarAlerta(predictionData, email, isManual);
-
-        if (resultado.alreadySent) {
-            return res.status(200).json({
-                success: false,
-                message: 'Alerta ya fue enviada hoy. Puede reenviar manualmente si es necesario.',
-                ...resultado
-            });
-        }
-
-        if (!resultado.success) {
-            // Si no fue exitoso pero no fue porque ya se envió, puede ser otro motivo (ej. no se requiere alerta).
-            return res.status(202).json({ success: false, ...resultado });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: 'Alerta enviada correctamente.',
-            ...resultado
-        });
-    } catch (error) {
-        // Usamos el manejador de errores centralizado
-        handleHttpError(res, 'ALERT_PROCESSING_ERROR', error);
-    }
+  try {
+    const data = await AlertService.evaluateAndNotify(req.body, req.user.id);
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    handleHttpError(res, "ALERT_ERROR", err, err.status || 400);
+  }
 };

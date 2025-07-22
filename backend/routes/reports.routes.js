@@ -1,30 +1,27 @@
-import { Router } from 'express';
-import multer from 'multer';
-import { getReports, createReport, getReportById } from '../controllers/reports.controller.js';
-import verifyToken from '../middlewares/auth.middleware.js';
-import { validateCreateReport } from '../middlewares/reports.validation.js'; // Importar el validador actualizado
+// File: routes/reports.routes.js
+import { Router } from "express";
+import multer from "multer";
+import verifyToken from "../middlewares/auth.middleware.js";
+import {
+  getReports,
+  createReport,
+  getReportById,
+} from "../controllers/reports.controller.js";
+import { validateCreateReport } from "../middlewares/reports.validation.js";
 
 const router = Router();
-
-// Configuración de Multer para manejar el archivo en memoria
-const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024 }
-});
-
-// Aplicar autenticación a todas las rutas de este archivo
+const upload = multer({ storage: multer.memoryStorage() });
 router.use(verifyToken);
 
-// --- Rutas ---
-router.get('/', getReports);
-router.get('/:id', getReportById);
+router.get("/", getReports);
 
-// La ruta POST ahora usa el nuevo validador que espera 'productCode'.
 router.post(
-    '/',
-    upload.single('reportFile'),
-    validateCreateReport, // <-- Usando el middleware actualizado
-    createReport
+  "/",
+  upload.single("reportFile"),
+  validateCreateReport,
+  createReport
 );
+
+router.get("/:id", getReportById);
 
 export default router;

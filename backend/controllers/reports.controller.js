@@ -1,109 +1,92 @@
-import Report from "../models/report.model.js";
-import User from "../models/user.model.js";
-import pythonService from "../services/python.service.js"; // Importante para validar el SKU
+// File: controllers/reports.controller.js
+import ReportService from "../routes/reports.routes.js";
 import { handleHttpError } from "../utils/errorHandler.js";
-import storageService from "../services/storage.service.js";
 
 /**
- * Obtiene los reportes del usuario. Ya no incluye el modelo Product.
+ * @swagger
+ * tags:
+ *   name: Reports
+ *   description: Gestión de reportes PDF
+ */
+
+/**
+ * @swagger
+ * /api/reports:
+ *   get:
+ *     summary: Lista todos los reportes
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Listado de reportes
  */
 export const getReports = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const reports = await Report.findAll({
-      where: { userId },
-      include: [{ model: User, attributes: ["id", "nombre", "email"] }], // Solo incluimos el usuario
-      order: [["createdAt", "DESC"]],
-    });
-    return res.json({ success: true, data: reports });
+    const data = await ReportService.list(req.user.id);
+    res.status(200).json({ success: true, data });
   } catch (err) {
-    handleHttpError(res, "GET_REPORTS_ERROR", err);
+    handleHttpError(res, "GET_REPORTS_ERROR", err, err.status || 500);
   }
 };
 
 /**
- * Crea un nuevo reporte asociado a un SKU.
+ * @swagger
+ * /api/reports:
+ *   post:
+ *     summary: Sube un nuevo reporte PDF
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [reportFile,productCode]
+ *             properties:
+ *               reportFile: { type: string, format: binary }
+ *               productCode: { type: string }
+ *     responses:
+ *       201:
+ *         description: Reporte creado
  */
 export const createReport = async (req, res) => {
   try {
-    if (!req.file) {
-      return handleHttpError(
-        res,
-        "NO_FILE_PROVIDED",
-        new Error("No se proporcionó ningún archivo."),
-        400
-      );
-    }
-
-    const { productCode } = req.body;
-    const userId = req.user.id;
-
-    // La validación ahora comprueba si el SKU existe en los datos de predicción del usuario.
-    const productData = await pythonService.getProductByCode(
-      userId,
-      productCode
+    const report = await ReportService.create(
+      req.body.productCode,
+      req.file,
+      req.user.id
     );
-    if (!productData) {
-      return handleHttpError(
-        res,
-        "PRODUCT_CODE_NOT_FOUND",
-        new Error(
-          `El SKU ${productCode} no se encontró en tus datos de predicción.`
-        ),
-        404
-      );
-    }
-
-    const fileName = `reporte-${productCode.replace(
-      /[\s/]/g,
-      "_"
-    )}-${Date.now()}.pdf`;
-    const filePath = `public/${userId}/${fileName}`;
-
-    const publicUrl = await storageService.uploadReport(
-      req.file.buffer,
-      filePath,
-      req.file.mimetype
-    );
-
-    // Guardamos el 'productCode' directamente en la tabla de reportes.
-    const report = await Report.create({
-      filename: fileName,
-      url: publicUrl,
-      userId,
-      productCode: productCode,
-    });
-
-    return res.status(201).json({ success: true, data: report });
+    res.status(201).json({ success: true, data: report });
   } catch (err) {
-    handleHttpError(res, "CREATE_REPORT_ERROR", err);
+    handleHttpError(res, "CREATE_REPORT_ERROR", err, err.status || 400);
   }
 };
 
 /**
- * Obtiene un reporte específico por su ID.
+ * @swagger
+ * /api/reports/{id}:
+ *   get:
+ *     summary: Descarga un reporte por ID
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema: { type: integer }
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: PDF
  */
 export const getReportById = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { id } = req.params;
-
-    const report = await Report.findOne({
-      where: { id, userId },
-      include: [{ model: User, attributes: ["id", "nombre", "email"] }],
-    });
-
-    if (!report) {
-      return handleHttpError(
-        res,
-        "REPORT_NOT_FOUND",
-        new Error("Reporte no encontrado o no tienes permiso."),
-        404
-      );
-    }
-
-    return res.json({ success: true, data: report });
+    const stream = await ReportService.getById(req.params.id, req.user.id);
+    res.setHeader("Content-Type", "application/pdf");
+    stream.pipe(res);
   } catch (err) {
-    handleHttpError(res, "GET_REPORT_BY_ID_ERROR", err);
+    handleHttpError(res, "GET_REPORT_ERROR", err, err.status || 404);
   }
 };
