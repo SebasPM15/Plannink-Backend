@@ -48,9 +48,7 @@ class EncryptionService {
      */
     decryptRequest(encryptedBody) {
         if (!this.privateKey) throw new Error("La llave privada no está disponible.");
-        
         const { encryptedKey, payload } = encryptedBody;
-
         try {
             // 1. Descifrar la llave AES usando la llave privada RSA
             const aesKeyBase64 = this._decryptRSA(encryptedKey);
@@ -100,7 +98,6 @@ class EncryptionService {
                 {
                     key: privateKey,
                     padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-                    oaepHash: 'sha256'
                 },
                 Buffer.from(encryptedKeyB64, 'base64')
             );

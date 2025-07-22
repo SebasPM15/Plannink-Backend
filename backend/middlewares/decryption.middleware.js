@@ -4,35 +4,46 @@ import { logger } from '../utils/logger.js';
 
 /**
  * Middleware para descifrar el cuerpo de las peticiones.
- * Guarda la llave AES de la sesión en req.aesKey para cifrar la respuesta.
+ * Ahora es ESTRICTO: rechaza peticiones no cifradas.
  */
 export const decryptionMiddleware = (req, res, next) => {
-    // Lista de rutas que no usan cifrado de body (ej. subida de archivos)
-    const excludedRoutes = ['/api/predictions/refresh', '/api/reports'];
-    
-    // Verifica si la ruta actual empieza con alguna de las rutas excluidas.
-    const isExcludedRoute = excludedRoutes.some(route => req.path.startsWith(route));
-
-    // Si la petición no debe ser descifrada, continúa.
-    if (req.method === 'GET' || isExcludedRoute || !req.body?.encryptedKey || !req.body?.payload) {
+    // Las peticiones GET no tienen un cuerpo que descifrar, así que continúan.
+    if (req.method === 'GET') {
         return next();
     }
 
-    try {
-        // El servicio ahora devuelve el cuerpo descifrado Y la llave AES.
-        const { decryptedBody, aesKey } = encryptionService.decryptRequest(req.body);
-
-        // 1. Reemplazar el cuerpo de la petición con los datos descifrados.
-        req.body = decryptedBody;
-        
-        // 2. ¡NUEVO! Guardar la llave AES en el objeto de la petición.
-        req.aesKey = aesKey;
-        
-        logger.info('Payload de la petición descifrado exitosamente.');
-        next();
-
-    } catch (error) {
-        logger.error('Error en middleware de descifrado:', error);
-        return handleHttpError(res, 'DECRYPTION_ERROR', new Error('Fallo al procesar la petición segura.'), 400);
+    // Las peticiones de subida de archivos (multipart/form-data) se excluyen del cifrado de body.
+    // El cifrado se aplica a JSON, no a archivos binarios.
+    if (req.headers['content-type']?.includes('multipart/form-data')) {
+        return next();
     }
+
+    // --- LÓGICA ESTRICTA ---
+    // A partir de aquí, esperamos que cualquier petición con un cuerpo (POST, PUT, PATCH) esté cifrada.
+
+    // Si la petición tiene un cuerpo pero NO tiene la estructura cifrada, se rechaza.
+    if (req.body && (!req.body.encryptedKey || !req.body.payload)) {
+        logger.warn(`Petición no cifrada rechazada para la ruta: ${req.path}`);
+        return handleHttpError(res, 'UNENCRYPTED_REQUEST', new Error('Esta ruta requiere un payload cifrado.'), 400);
+    }
+
+    // Si la petición tiene el formato cifrado correcto, se procesa.
+    if (req.body) {
+        try {
+            const { decryptedBody, aesKey } = encryptionService.decryptRequest(req.body);
+            
+            // Reemplazar el cuerpo de la petición con los datos descifrados.
+            req.body = decryptedBody;
+            
+            // Guardar la llave AES en el objeto de la petición para poder cifrar la respuesta.
+            req.aesKey = aesKey;
+            
+            logger.info('Payload de la petición descifrado exitosamente.');
+        } catch (error) {
+            return handleHttpError(res, 'DECRYPTION_ERROR', new Error('Fallo al procesar la petición segura.'), 400);
+        }
+    }
+    
+    // Continuar al siguiente middleware o controlador.
+    next();
 };
