@@ -399,9 +399,9 @@ def parsear_fecha_excel(fecha_celda):
     except Exception as e:
         logger.error(f"Error al parsear fecha: {str(e)}")
         return None
-
 def identificar_columnas_consumo(df):
-    cols_consumo = [col for col in df.columns if col.startswith("CONS ")]
+    # Identify columns that match the pattern "MMM YYYY" (e.g., "AGO 2023")
+    cols_consumo = [col for col in df.columns if re.match(r'^\w{3}\s+\d{4}$', col.strip().upper())]
     
     if not cols_consumo:
         raise ValueError("No se encontraron columnas de consumo en el archivo")
@@ -410,17 +410,18 @@ def identificar_columnas_consumo(df):
     for col in cols_consumo:
         try:
             partes = col.split()
-            if len(partes) >= 3:
-                mes_abr = partes[1]
-                año = int(partes[2])
+            if len(partes) == 2:
+                mes_abr = partes[0].upper()
+                año = int(partes[1])
                 
-                mes_num = next((num for num, abr in SPANISH_MONTHS.items() if abr.upper() == mes_abr.upper()), None)
+                mes_num = next((num for num, abr in SPANISH_MONTHS.items() if abr.upper() == mes_abr), None)
                 
                 if mes_num:
                     fecha = datetime(año, mes_num, 1)
                     fechas_consumo.append((col, fecha))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"No se pudo parsear la columna {col}: {str(e)}")
+            continue
     
     fechas_consumo.sort(key=lambda x: x[1])
     cols_ordenadas = [item[0] for item in fechas_consumo]
