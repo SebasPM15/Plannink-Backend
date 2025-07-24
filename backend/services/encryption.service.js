@@ -42,6 +42,22 @@ class EncryptionService {
     }
 
     /**
+     * @description [NUEVO] Descifra solo la llave de sesión (AES) desde un header para peticiones GET.
+     * @param {string} encryptedKeyB64 - La llave AES cifrada con RSA, en Base64.
+     * @returns {Buffer} - La llave AES descifrada como un Buffer.
+     */
+    decryptSessionKey(encryptedKeyB64) {
+        if (!this.privateKey) throw new Error("La llave privada no está disponible.");
+        try {
+            const aesKeyBase64 = this._decryptRSA(encryptedKeyB64);
+            return Buffer.from(aesKeyBase64, 'base64');
+        } catch (error) {
+            logger.error('Error en decryptSessionKey:', error);
+            throw new Error('No se pudo descifrar la llave de sesión del header.');
+        }
+    }
+
+    /**
      * Descifra la llave AES y el payload de una petición entrante.
      * @param {object} encryptedBody - El cuerpo cifrado: { encryptedKey, payload }
      * @returns {object} - El objeto JSON del payload descifrado.
