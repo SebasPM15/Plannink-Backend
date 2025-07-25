@@ -35,7 +35,9 @@ app.use(
       "Authorization",
       "X-Requested-With",
       "Accept",
+      "X-Encrypted-Key",
     ],
+    credentials: true,
   })
 );
 

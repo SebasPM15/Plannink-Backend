@@ -2,10 +2,10 @@
 import crypto from 'crypto';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3500/api';
+const API_BASE_URL = 'http://127.0.0.1:3500/api';
 const USER_CREDENTIALS = {
-    email: "sebasdelpm@gmail.com", // <-- CAMBIA ESTO
-    password: "SebasPm15" // <-- CAMBIA ESTO
+    email: "andyjapon.ios@gmail.com", // <-- CAMBIA ESTO
+    password: "andy123456" // <-- CAMBIA ESTO
 };
 
 function encryptWithRSA(plaintextBuffer, publicKeyPem) {
