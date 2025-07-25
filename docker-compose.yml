@@ -15,18 +15,3 @@ services:
     #   - ./backend:/usr/src/app
     #   - ./ai_model:/usr/src/app/ai_model
     #   - /usr/src/app/node_modules
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: frontend
-    ports:
-      - "3000:3000"
-    env_file:
-      - frontend/.env
-    depends_on:
-      - backend
-    # volumes:
-    #   - ./frontend:/usr/src/app
-    #   - /usr/src/app/node_modules
