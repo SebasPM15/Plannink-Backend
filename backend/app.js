@@ -16,14 +16,15 @@ import predictionsRouter from "./routes/predictions.routes.js";
 import alertRoutes from "./routes/alert.routes.js";
 import activityLog from "./routes/activity.routes.js";
 import securityRoutes from "./routes/security.routes.js";
-import { swaggerMiddleware, swaggerUiSetup } from "./config/swagger.js";
+import { swaggerMiddleware, swaggerUiSetup } from "./config/swagger.js"; // Import Swagger middleware
 
+// Configuración del puerto
 const PORT = process.env.PORT || 3500;
 const HOST = process.env.HOST || "0.0.0.0";
 
 const app = express();
 
-// 1. Seguridad esencial
+// 1. Configuración de Seguridad Esencial
 app.use(helmet());
 app.use(
   cors({
@@ -34,11 +35,13 @@ app.use(
       "Authorization",
       "X-Requested-With",
       "Accept",
+      "X-Encrypted-Key",
     ],
+    credentials: true,
   })
 );
 
-// 2. Rate limiter para rutas protegidas
+// 2. Limitador de Tasa General (para rutas protegidas)
 const protectedLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -54,55 +57,36 @@ const protectedLimiter = rateLimit({
   },
 });
 
-// 3. Middlewares básicos
+// 3. Middlewares Básicos
 app.use(morgan("combined", { stream: logger.stream }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// 4. Swagger UI
+// --- CADENA DE MIDDLEWARES DE CIFRADO ---
+app.use(decryptionMiddleware);
+app.use(encryptionMiddleware);
+
+// --- Swagger UI Route ---
 app.use("/api-docs", swaggerMiddleware, swaggerUiSetup);
 
-// 5. Conexión a la base de datos
+// Conexión a la base de datos
 sequelize
   .sync({ alter: true })
   .then(() => console.log("✅ Base de datos conectada y sincronizada"))
   .catch((err) => console.error("❌ Error de conexión a la DB:", err));
 
-// --- RUTAS ---
+// --- Definición de Rutas ---
 
-// A) Públicas (NO cifradas)
+// A. Rutas Públicas (Autenticación y Seguridad)
 app.use("/api/security", securityRoutes);
 app.use("/api/auth", authRoutes);
 
-// B) Protegidas (requieren token Y pasan por cifrado/descifrado)
-app.use(
-  "/api/predictions",
-  protectedLimiter,
-  verifyToken,
-  decryptionMiddleware,
-  encryptionMiddleware,
-  predictionsRouter
-);
+// B. Rutas Protegidas (Requieren Token)
+app.use("/api/predictions", protectedLimiter, verifyToken, predictionsRouter);
+app.use("/api/alertas", protectedLimiter, verifyToken, alertRoutes);
+app.use("/api/history", protectedLimiter, verifyToken, activityLog);
 
-app.use(
-  "/api/alertas",
-  protectedLimiter,
-  verifyToken,
-  decryptionMiddleware,
-  encryptionMiddleware,
-  alertRoutes
-);
-
-app.use(
-  "/api/history",
-  protectedLimiter,
-  verifyToken,
-  decryptionMiddleware,
-  encryptionMiddleware,
-  activityLog
-);
-
-// C) Health Check (públicas)
+// C. Rutas de Health Check (Públicas)
 const healthResponse = async (req, res) => {
   const dbStatus = await sequelize
     .authenticate()
@@ -121,7 +105,7 @@ const healthResponse = async (req, res) => {
 app.get("/health", healthResponse);
 app.get("/api/health", healthResponse);
 
-// --- Manejo de errores ---
+// --- Manejo de Errores (al final de todo) ---
 app.use((req, res) => {
   handleHttpError(
     res,
@@ -130,6 +114,7 @@ app.use((req, res) => {
     404
   );
 });
+
 app.use((err, req, res, next) => {
   logger.error(`Error no manejado: ${err.stack}`);
   handleHttpError(res, "INTERNAL_SERVER_ERROR", err, 500);
