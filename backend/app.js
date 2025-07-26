@@ -10,8 +10,6 @@ import bodyParser from "body-parser";
 
 // --- Middlewares y Rutas ---
 import verifyToken from "./middlewares/auth.middleware.js";
-import { decryptionMiddleware } from "./middlewares/decryption.middleware.js";
-import { encryptionMiddleware } from "./middlewares/encryption.middleware.js";
 import authRoutes from "./routes/auth.routes.js";
 import predictionsRouter from "./routes/predictions.routes.js";
 import alertRoutes from "./routes/alert.routes.js";
@@ -57,12 +55,11 @@ sequelize
   .then(() => console.log("✅ Base de datos conectada y sincronizada"))
   .catch((err) => console.error("❌ Error de conexión a la DB:", err));
 
-// 6. Rutas públicas (sin cifrado)
+// 6. Rutas públicas
 app.use("/api/security", securityRoutes);
 app.use("/api/auth", authRoutes);
 
-// 7. Rutas protegidas (token + cifrado)
-//    – rate limit, verifyToken, decrypt incoming, encrypt outgoing
+// 7. Rutas protegidas (token + rate limiting)
 const protectedLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -77,30 +74,9 @@ const protectedLimiter = rateLimit({
     ),
 });
 
-app.use(
-  "/api/predictions",
-  protectedLimiter,
-  verifyToken,
-  decryptionMiddleware,
-  encryptionMiddleware,
-  predictionsRouter
-);
-app.use(
-  "/api/alertas",
-  protectedLimiter,
-  verifyToken,
-  decryptionMiddleware,
-  encryptionMiddleware,
-  alertRoutes
-);
-app.use(
-  "/api/history",
-  protectedLimiter,
-  verifyToken,
-  decryptionMiddleware,
-  encryptionMiddleware,
-  activityLog
-);
+app.use("/api/predictions", protectedLimiter, verifyToken, predictionsRouter);
+app.use("/api/alertas", protectedLimiter, verifyToken, alertRoutes);
+app.use("/api/history", protectedLimiter, verifyToken, activityLog);
 
 // 8. Health check
 const healthResponse = async (req, res) => {
